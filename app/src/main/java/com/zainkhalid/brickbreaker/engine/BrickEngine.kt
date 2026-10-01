@@ -340,10 +340,15 @@ class BrickEngine(seed: Int = 1991) {
 
     /** Resets score and lives and starts level 1. */
     fun newGame() {
+        startLevel(0)
+    }
+
+    /** Fresh start on [index] with zero score and full lives. Used for replaying a level. */
+    fun startLevel(index: Int) {
         score = 0
         lives = START_LIVES
         resetRun()
-        loadLevel(0)
+        loadLevel(index.coerceIn(0, BrickLevels.lastIndex))
     }
 
     /** Restart the current level with the score and lives it started with. */

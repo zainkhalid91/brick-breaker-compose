@@ -86,6 +86,12 @@ import kotlinx.coroutines.withContext
 /** 1:1 finger-to-paddle tracking; raise above 1 for a faster paddle. */
 private const val DRAG_SENSITIVITY = 1.15f
 
+/**
+ * Testing switch: true opens every level in the level picker, so any level can
+ * be played (and recorded) straight away. Keep it false for release builds.
+ */
+const val UNLOCK_ALL_LEVELS = false
+
 private enum class BrickScreen { Menu, Game }
 
 /** Entry point: menu and game screens. */
@@ -99,6 +105,9 @@ fun BrickBreakerApp() {
     var saved by remember { mutableStateOf(store.load()) }
     var best by remember { mutableIntStateOf(store.best) }
     var stars by remember { mutableStateOf(store.stars()) }
+    var unlocked by remember { mutableIntStateOf(if (UNLOCK_ALL_LEVELS) BrickLevels.lastIndex else store.unlocked) }
+    // Level picked from the menu, or -1 for the normal run.
+    var replayLevel by rememberSaveable { mutableIntStateOf(-1) }
     GameWindowEffects()
     AnimatedContent(
         targetState = screen,
@@ -110,24 +119,34 @@ fun BrickBreakerApp() {
                 best = best,
                 saved = saved,
                 stars = stars,
+                unlocked = unlocked,
                 onContinue = {
                     freshStart = false
+                    replayLevel = -1
                     screen = BrickScreen.Game
                 },
                 onNewGame = {
                     store.clear()
                     freshStart = true
+                    replayLevel = -1
+                    screen = BrickScreen.Game
+                },
+                onPlayLevel = { level ->
+                    replayLevel = level
                     screen = BrickScreen.Game
                 },
             )
             BrickScreen.Game -> BrickGameScreen(
                 store = store,
                 freshStart = freshStart,
+                replayLevel = replayLevel,
                 onStarted = { freshStart = false },
                 onExit = {
                     saved = store.load()
                     best = store.best
                     stars = store.stars()
+                    unlocked = if (UNLOCK_ALL_LEVELS) BrickLevels.lastIndex else store.unlocked
+                    replayLevel = -1
                     screen = BrickScreen.Menu
                 },
             )
@@ -140,15 +159,23 @@ fun BrickBreakerApp() {
 private fun BrickGameScreen(
     store: BrickSaveStore,
     freshStart: Boolean,
+    replayLevel: Int,
     onStarted: () -> Unit,
     onExit: () -> Unit,
 ) {
+    // A replay never touches the save point, so CONTINUE still resumes the main run.
+    val replay = replayLevel >= 0
     val engine = remember {
         BrickEngine().apply {
-            val save = if (freshStart) null else store.load()
-            if (save != null) restore(save) else newGame()
+            val save = if (freshStart || replay) null else store.load()
+            when {
+                replay -> startLevel(replayLevel)
+                save != null -> restore(save)
+                else -> newGame()
+            }
         }
     }
+    val save = { if (!replay) store.save(engine.exportSave()) }
     LaunchedEffect(Unit) { onStarted() }
     val haptics = LocalHapticFeedback.current
     SideEffect {
@@ -163,27 +190,31 @@ private fun BrickGameScreen(
             BrickPhase.GameOver -> {
                 // Keep the save so CONTINUE goes back to this level.
                 store.best = engine.score
-                store.save(engine.exportSave())
+                save()
             }
             BrickPhase.Victory -> {
                 store.best = engine.score
-                store.clear()
+                if (!replay) store.clear()
             }
             BrickPhase.LevelClear -> {
                 store.recordStars(levelIndex, engine.lastStars)
+                store.unlock(levelIndex + 1)
                 store.best = engine.score
-                store.save(engine.exportSave())
+                save()
             }
-            BrickPhase.Intro -> store.save(engine.exportSave())
+            BrickPhase.Intro -> {
+                store.unlock(levelIndex)
+                save()
+            }
             BrickPhase.Playing -> Unit
         }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
         if (engine.phase == BrickPhase.Playing || engine.phase == BrickPhase.Intro) engine.paused = true
-        store.save(engine.exportSave())
+        save()
     }
     val exit = {
-        store.save(engine.exportSave())
+        save()
         onExit()
     }
     BackHandler {

@@ -49,6 +49,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -94,8 +97,10 @@ fun BrickMenuScreen(
     best: Int,
     saved: BrickSave?,
     stars: List<Int>,
+    unlocked: Int,
     onContinue: () -> Unit,
     onNewGame: () -> Unit,
+    onPlayLevel: (Int) -> Unit,
 ) {
     val transition = rememberInfiniteTransition(label = "menu")
     val comet by transition.animateFloat(
@@ -230,7 +235,7 @@ fun BrickMenuScreen(
                 } else {
                     BrickPillButton("PLAY", MenuPlayCyan, onNewGame, Modifier.width(220.dp))
                 }
-                LevelStars(stars)
+                LevelPicker(stars, unlocked, onPlayLevel)
                 PowerUpLegend()
                 Text(
                     if (best > 0) "BEST  $best" else "${BrickLevels.size} LEVELS · ${BrickLevels.count { it.boss != null }} BOSSES · 3 LIVES",
@@ -317,26 +322,56 @@ private fun BoxScope.NewGameConfirm(visible: Boolean, saved: BrickSave, onConfir
     }
 }
 
-/** Best stars per level, in two rows of five. */
+/** Level grid. Unlocked levels can be tapped to play them again; locked ones show a padlock. */
 @Composable
-private fun LevelStars(stars: List<Int>) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+private fun LevelPicker(stars: List<Int>, unlocked: Int, onPlayLevel: (Int) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         for (rowStart in BrickLevels.indices step 5) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (i in rowStart until minOf(rowStart + 5, BrickLevels.size)) {
-                    val boss = BrickLevels[i].boss != null
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        StarRow(stars = stars.getOrElse(i) { 0 }, animate = false, size = 12.dp)
-                        Text(
-                            if (boss) "BOSS ${i + 1}" else "L${i + 1}",
-                            color = if (boss) Color(0xFFFF4E5E) else Color.White.copy(alpha = 0.55f),
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp,
-                        )
-                    }
+                    LevelTile(i, stars.getOrElse(i) { 0 }, open = i <= unlocked, onClick = { onPlayLevel(i) })
                 }
             }
+        }
+        Text(
+            "TAP A LEVEL TO PLAY IT",
+            color = Color.White.copy(alpha = 0.5f),
+            fontSize = 8.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.5.sp,
+        )
+    }
+}
+
+/** One level in the picker. */
+@Composable
+private fun LevelTile(index: Int, stars: Int, open: Boolean, onClick: () -> Unit) {
+    val boss = BrickLevels[index].boss != null
+    val tint = if (boss) Color(0xFFFF4E5E) else MenuPlayCyan
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .size(width = 58.dp, height = 44.dp)
+            .background(if (open) tint.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.04f), RoundedCornerShape(10.dp))
+            .border(1.dp, if (open) tint.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
+            .clickable(enabled = open, onClick = onClick)
+            .padding(top = 3.dp),
+    ) {
+        if (open) {
+            Text(
+                if (boss) "BOSS ${index + 1}" else "${index + 1}",
+                color = if (boss) tint else Color.White,
+                fontSize = if (boss) 10.sp else 15.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 0.5.sp,
+            )
+            Spacer(Modifier.weight(1f))
+            StarRow(stars = stars, animate = false, size = 10.dp)
+            Spacer(Modifier.height(4.dp))
+        } else {
+            Spacer(Modifier.weight(1f))
+            Icon(Icons.Filled.Lock, contentDescription = "Locked", tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(16.dp))
+            Spacer(Modifier.weight(1f))
         }
     }
 }

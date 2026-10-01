@@ -29,6 +29,7 @@ private const val KEY_BRICKS = "save_bricks"
 private const val KEY_CREEP = "save_creep"
 private const val KEY_BEST = "best_score"
 private const val KEY_STARS = "stars_"
+private const val KEY_UNLOCKED = "unlocked_level"
 
 /** Save point, best score and stars per level. */
 class BrickSaveStore(context: Context) {
@@ -87,6 +88,20 @@ class BrickSaveStore(context: Context) {
 
     /** Best stars (0 to 3) per level. */
     fun stars(): List<Int> = BrickLevels.indices.map { prefs.getInt(KEY_STARS + it, 0) }
+
+    /** Highest level index the player can pick from the menu. */
+    val unlocked: Int
+        get() {
+            var top = prefs.getInt(KEY_UNLOCKED, 0)
+            // Older installs only have stars and the save point to go on.
+            for (i in BrickLevels.indices) if (prefs.getInt(KEY_STARS + i, 0) > 0) top = maxOf(top, i + 1)
+            load()?.let { top = maxOf(top, it.levelIndex) }
+            return top.coerceIn(0, BrickLevels.lastIndex)
+        }
+
+    fun unlock(level: Int) {
+        if (level > prefs.getInt(KEY_UNLOCKED, 0)) prefs.edit { putInt(KEY_UNLOCKED, level) }
+    }
 
     fun recordStars(level: Int, stars: Int) {
         if (stars > prefs.getInt(KEY_STARS + level, 0)) prefs.edit { putInt(KEY_STARS + level, stars) }

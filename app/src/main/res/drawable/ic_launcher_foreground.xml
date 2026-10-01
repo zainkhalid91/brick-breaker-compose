@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Three rows of bricks -->
+    <path android:fillColor="#FF2E7E" android:pathData="M30,34h14v7h-14z M47,34h14v7h-14z M64,34h14v7h-14z" />
+    <path android:fillColor="#FFC928" android:pathData="M30,44h14v7h-14z M64,44h14v7h-14z" />
+    <path android:fillColor="#2FD8F5" android:pathData="M30,54h14v7h-14z M47,54h14v7h-14z M64,54h14v7h-14z" />
+    <!-- Ball -->
+    <path android:fillColor="#FFFFFF" android:pathData="M54,67m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+    <!-- Paddle -->
+    <path android:fillColor="#E8EDF2" android:pathData="M40,76h28a3,3 0,0 1,0 6h-28a3,3 0,0 1,0 -6z" />
+</vector>
